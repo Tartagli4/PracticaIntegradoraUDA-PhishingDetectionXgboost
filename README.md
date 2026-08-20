@@ -113,8 +113,7 @@ distribución.
 
 ## Autores
 
-Víctor Córdoba · Lionel Gutiérrez · Nahuel Leyes · Giuliana Pessina ·
-Ignacio Romero · Juan Ignacio Tartaglia · Jorge Tohme
+Víctor Córdoba · Lionel Gutiérrez · Nahuel Leyes · Giuliana Pessina · Juan Ignacio Tartaglia · Jorge Tohme
 
 Laboratorio de Investigación en Ciencia y Tecnología — Universidad del
 Aconcagua, Mendoza, Argentina.
