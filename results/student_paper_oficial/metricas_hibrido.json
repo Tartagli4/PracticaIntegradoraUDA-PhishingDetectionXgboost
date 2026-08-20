@@ -1,0 +1,23 @@
+{
+  "experimento": "random_stratified_70_15_15",
+  "clase_positiva": "phishing",
+  "test": {
+    "total": 8597,
+    "benignas": 2644,
+    "phishing": 5953
+  },
+  "matriz_confusion": {
+    "TN": 2631,
+    "FP": 13,
+    "FN": 66,
+    "TP": 5887
+  },
+  "metricas": {
+    "accuracy": 0.9908107479353263,
+    "precision": 0.9977966101694915,
+    "recall": 0.9889131530320847,
+    "f1": 0.9933350206698726,
+    "false_positive_rate": 0.004916792738275341
+  },
+  "fuente": "tabla_ablacion.csv, fila Sistema Hibrido"
+}

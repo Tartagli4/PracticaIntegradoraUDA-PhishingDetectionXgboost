@@ -3,7 +3,8 @@ Fase 4 - Construccion de caracteristicas
 ==========================================
 Construye los tres bloques de features descritos en el paper:
   (a) 9 caracteristicas lexicas escalares de la URL
-  (b) Vectores TF-IDF (n-gramas de caracteres 1-3) sobre HTML ruidoso + texto plano
+  (b) Vectores TF-IDF (n-gramas de caracteres 1-3) sobre el texto plano
+      extraido del HTML
   (c) 3 razones estructurales de hipervinculos
 """
 import pandas as pd
@@ -96,7 +97,7 @@ def construir_features_lexicas_y_links(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([lex, links], axis=1)
 
 
-# ---------- (b) TF-IDF caracter n-gramas sobre HTML + texto plano ----------
+# ---------- (b) TF-IDF caracter n-gramas sobre texto extraido del HTML ----------
 
 def construir_tfidf(textos_train, textos_resto=None, max_features=5000):
     """
@@ -127,5 +128,5 @@ if __name__ == "__main__":
     df_scalar.to_parquet("../data/features_escalares.parquet", index=False)
     print(df_scalar.describe())
 
-    print("\nFeatures escalares listas. El TF-IDF se ajusta en fase5_escalado.py")
+    print("\nFeatures escalares listas. El TF-IDF se ajusta en fase5_6_entrenamiento.py")
     print("(debe ajustarse solo sobre train, por eso se separa del resto del pipeline).")

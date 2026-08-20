@@ -5,72 +5,87 @@ Fase 6 - Particion + Entrenamiento XGBoost + Estudio de ablacion
 Este script:
 1. Particiona el corpus 70/15/15 (train/val/test) estratificado.
 2. Ajusta StandardScaler y TfidfVectorizer SOLO sobre train.
-3. Entrena XGBoost con CV de 5 pliegues sobre train para hiperparametros.
-4. Evalua en test: exactitud, precision, exhaustividad, F1, TFP, matriz de confusion.
-5. Corre el ESTUDIO DE ABLACION: Solo-URL / Solo-HTML / Solo-Hipervinculos / Hibrido.
-6. Genera el grafico de Feature Importance de XGBoost.
-
-Todos los resultados (tablas + graficos) se guardan en ../results/
-para insertar directamente en el paper.
+3. Reproduce la configuracion oficial del Student Paper mediante una grilla
+   unitaria y CV estratificada de 3 pliegues sobre train.
+4. Evalua en test: exactitud, precision, exhaustividad, F1, TFP y matriz de confusion.
+5. Corre el estudio de ablacion: Solo-URL / Solo-HTML / Solo-Hipervinculos / Hibrido.
+6. Guarda los artefactos del experimento oficial en ../results/student_paper_oficial/
 """
-import pandas as pd
-import numpy as np
+import hashlib
 import json
 import os
-import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, StratifiedKFold, GridSearchCV
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report
-)
-from scipy.sparse import hstack, csr_matrix
-import xgboost as xgb
+
 import joblib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import sklearn
+import xgboost as xgb
+from scipy.sparse import csr_matrix, hstack
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+)
+from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from fase4_features import construir_features_lexicas_y_links, construir_tfidf
 
-RESULTS_DIR = "../results"
-os.makedirs(RESULTS_DIR, exist_ok=True)
+RESULTS_DIR = "../results/student_paper_oficial"
+RANDOM_STATE = 42
+OFFICIAL_CV_FOLDS = 3
+OFFICIAL_MODEL_GRID = {
+    "max_depth": [6],
+    "n_estimators": [300],
+    "learning_rate": [0.1],
+}
+MANIFEST_FILES = (
+    "resumen_corpus.json", "tabla_ablacion.csv", "matriz_confusion.png",
+    "metricas_hibrido.json", "config_modelo.json", "matrices_ablacion.json",
+)
 
 COLS_LEXICAS = [
     "url_longitud", "url_num_subdominios", "url_tiene_ip", "url_tiene_arroba",
     "url_doble_barra_path", "url_guiones_dominio", "url_https_en_dominio",
     "url_profundidad_ruta", "url_tld_en_ruta",
 ]
-COLS_HIPERVINCULOS = ["frac_enlaces_externos", "frac_anclas_nulas", "frac_forms_accion_externa"]
+COLS_HIPERVINCULOS = [
+    "frac_enlaces_externos", "frac_anclas_nulas", "frac_forms_accion_externa"
+]
 
 
 def particionar(df):
-    """70/15/15 estratificado, como especifica Fase 6."""
-    train, temp = train_test_split(df, test_size=0.30, stratify=df["label"], random_state=42)
-    val, test = train_test_split(temp, test_size=0.50, stratify=temp["label"], random_state=42)
+    """70/15/15 estratificado con semilla 42."""
+    train, temp = train_test_split(
+        df, test_size=0.30, stratify=df["label"], random_state=RANDOM_STATE
+    )
+    val, test = train_test_split(
+        temp, test_size=0.50, stratify=temp["label"], random_state=RANDOM_STATE
+    )
     print(f"Train: {len(train)} | Val: {len(val)} | Test: {len(test)}")
     return train.reset_index(drop=True), val.reset_index(drop=True), test.reset_index(drop=True)
 
 
 def calcular_tfp(y_true, y_pred):
-    """Tasa de Falsos Positivos = FP / (FP + TN)."""
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    """Tasa de falsos positivos = FP / (FP + TN)."""
+    tn, fp, _, _ = confusion_matrix(y_true, y_pred).ravel()
     return fp / (fp + tn) if (fp + tn) > 0 else 0.0
 
 
-def entrenar_xgboost(X_train, y_train, cv_folds=5):
-    """GridSearch + CV de 5 pliegues para seleccion de hiperparametros (Fase 6)."""
-    param_grid = {
-        "max_depth": [4, 6, 8],
-        "n_estimators": [200, 400],
-        "learning_rate": [0.05, 0.1],
-    }
+def entrenar_xgboost(X_train, y_train, cv_folds=OFFICIAL_CV_FOLDS):
+    """Reproduce la grilla unitaria y CV de la ejecucion oficial."""
     base = xgb.XGBClassifier(
         objective="binary:logistic",
         eval_metric="logloss",
-        use_label_encoder=False,
-        random_state=42,
+        random_state=RANDOM_STATE,
         n_jobs=-1,
     )
-    skf = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=42)
-    grid = GridSearchCV(base, param_grid, cv=skf, scoring="accuracy", n_jobs=-1, verbose=1)
+    folds = StratifiedKFold(
+        n_splits=cv_folds, shuffle=True, random_state=RANDOM_STATE
+    )
+    grid = GridSearchCV(
+        base, OFFICIAL_MODEL_GRID, cv=folds,
+        scoring="accuracy", n_jobs=-1, verbose=1
+    )
     grid.fit(X_train, y_train)
     print(f"Mejores hiperparametros: {grid.best_params_}")
     return grid.best_estimator_
@@ -91,16 +106,16 @@ def evaluar(modelo, X_test, y_test, nombre_escenario):
 
 def graficar_matriz_confusion(cm, nombre_archivo):
     fig, ax = plt.subplots(figsize=(5, 4))
-    im = ax.imshow(cm, cmap="Blues")
+    image = ax.imshow(cm, cmap="Blues")
     for i in range(2):
         for j in range(2):
             ax.text(j, i, str(cm[i, j]), ha="center", va="center",
-                     color="white" if cm[i, j] > cm.max() / 2 else "black")
+                    color="white" if cm[i, j] > cm.max() / 2 else "black")
     ax.set_xticks([0, 1]); ax.set_xticklabels(["Benigno", "Phishing"])
     ax.set_yticks([0, 1]); ax.set_yticklabels(["Benigno", "Phishing"])
     ax.set_xlabel("Prediccion"); ax.set_ylabel("Real")
     ax.set_title("Matriz de Confusion - Sistema Hibrido")
-    fig.colorbar(im)
+    fig.colorbar(image)
     fig.tight_layout()
     fig.savefig(os.path.join(RESULTS_DIR, nombre_archivo), dpi=150)
     plt.close(fig)
@@ -120,35 +135,46 @@ def graficar_feature_importance(modelo, nombres_features, nombre_archivo, top_n=
     plt.close(fig)
 
 
+def guardar_json(nombre_archivo, contenido):
+    with open(os.path.join(RESULTS_DIR, nombre_archivo), "w", encoding="utf-8") as archivo:
+        json.dump(contenido, archivo, ensure_ascii=False, indent=2)
+        archivo.write("\n")
+
+
+def sha256_archivo(ruta):
+    digest = hashlib.sha256()
+    with open(ruta, "rb") as archivo:
+        for bloque in iter(lambda: archivo.read(1024 * 1024), b""):
+            digest.update(bloque)
+    return digest.hexdigest()
+
+
 def correr_pipeline_completo():
+    os.makedirs(RESULTS_DIR, exist_ok=True)
     df = pd.read_parquet("../data/corpus_normalizado.parquet")
     train, val, test = particionar(df)
 
-    # --- Features escalares (lexicas + hipervinculos) ---
     train_scalar = construir_features_lexicas_y_links(train)
     val_scalar = construir_features_lexicas_y_links(val)
     test_scalar = construir_features_lexicas_y_links(test)
 
-    scaler = StandardScaler().fit(train_scalar)  # Fase 5: ajustar SOLO sobre train
+    scaler = StandardScaler().fit(train_scalar)
     train_scalar_s = scaler.transform(train_scalar)
     val_scalar_s = scaler.transform(val_scalar)
     test_scalar_s = scaler.transform(test_scalar)
     joblib.dump(scaler, os.path.join(RESULTS_DIR, "scaler.joblib"))
 
-    # --- TF-IDF (ajustado solo sobre train) ---
     vectorizer, X_tfidf_train, X_tfidf_val = construir_tfidf(
         train["texto_plano"], val["texto_plano"], max_features=5000
     )
     X_tfidf_test = vectorizer.transform(test["texto_plano"])
     joblib.dump(vectorizer, os.path.join(RESULTS_DIR, "tfidf_vectorizer.joblib"))
 
-    nombres_features = COLS_LEXICAS + COLS_HIPERVINCULOS + \
-        [f"tfidf_{t}" for t in vectorizer.get_feature_names_out()]
-
-    # ===== ESTUDIO DE ABLACION =====
+    nombres_features = COLS_LEXICAS + COLS_HIPERVINCULOS + [
+        f"tfidf_{token}" for token in vectorizer.get_feature_names_out()
+    ]
     n_lex = len(COLS_LEXICAS)
     n_link = len(COLS_HIPERVINCULOS)
-
     escenarios = {
         "Solo URL": (
             train_scalar_s[:, :n_lex], test_scalar_s[:, :n_lex]
@@ -157,7 +183,8 @@ def correr_pipeline_completo():
             X_tfidf_train, X_tfidf_test
         ),
         "Solo Hipervinculos": (
-            train_scalar_s[:, n_lex:n_lex + n_link], test_scalar_s[:, n_lex:n_lex + n_link]
+            train_scalar_s[:, n_lex:n_lex + n_link],
+            test_scalar_s[:, n_lex:n_lex + n_link]
         ),
         "Sistema Hibrido": (
             hstack([csr_matrix(train_scalar_s), X_tfidf_train]).tocsr(),
@@ -166,41 +193,132 @@ def correr_pipeline_completo():
     }
 
     resultados_ablacion = []
+    matrices = []
     modelo_hibrido = None
-    for nombre, (X_tr, X_te) in escenarios.items():
+    metricas_hibrido = None
+    matriz_hibrido = None
+
+    for nombre, (X_train, X_test) in escenarios.items():
         print(f"\n=== Entrenando escenario: {nombre} ===")
-        modelo = entrenar_xgboost(X_tr, train["label"])
-        metrics, cm = evaluar(modelo, X_te, test["label"], nombre)
+        modelo = entrenar_xgboost(X_train, train["label"])
+        metrics, cm = evaluar(modelo, X_test, test["label"], nombre)
         resultados_ablacion.append(metrics)
+        tn, fp, fn, tp = (int(value) for value in cm.ravel())
+        matrices.append({
+            "escenario": nombre,
+            "matriz_confusion": {"TN": tn, "FP": fp, "FN": fn, "TP": tp},
+            "metricas": {
+                key: float(metrics[key])
+                for key in ("exactitud", "precision", "exhaustividad", "f1", "tfp")
+            },
+        })
         print(metrics)
         if nombre == "Sistema Hibrido":
             modelo_hibrido = modelo
-            graficar_matriz_confusion(cm, "matriz_confusion_hibrido.png")
-            joblib.dump(modelo, os.path.join(RESULTS_DIR, "modelo_xgboost_hibrido.joblib"))
+            metricas_hibrido = metrics
+            matriz_hibrido = cm
+            graficar_matriz_confusion(cm, "matriz_confusion.png")
+            joblib.dump(
+                modelo, os.path.join(RESULTS_DIR, "modelo_xgboost_hibrido.joblib")
+            )
 
     df_ablacion = pd.DataFrame(resultados_ablacion)
     df_ablacion.to_csv(os.path.join(RESULTS_DIR, "tabla_ablacion.csv"), index=False)
     print("\n=== TABLA DE ABLACION ===")
     print(df_ablacion.to_string(index=False))
 
-    # Feature importance solo tiene sentido completo para el escenario hibrido
     if modelo_hibrido is not None:
-        graficar_feature_importance(modelo_hibrido, nombres_features, "feature_importance.png")
+        graficar_feature_importance(
+            modelo_hibrido, nombres_features, "feature_importance.png"
+        )
 
-    with open(os.path.join(RESULTS_DIR, "resumen_corpus.json"), "w") as f:
-        json.dump({
-            "total_paginas": len(df),
-            "benignas": int((df["label"] == 0).sum()),
-            "phishing": int((df["label"] == 1).sum()),
-            "train": len(train), "val": len(val), "test": len(test),
-        }, f, indent=2)
+    resumen = {
+        "total_paginas": len(df),
+        "benignas": int((df["label"] == 0).sum()),
+        "phishing": int((df["label"] == 1).sum()),
+        "train": len(train), "val": len(val), "test": len(test),
+    }
+    guardar_json("resumen_corpus.json", resumen)
 
-    print(f"\nListo. Resultados guardados en {RESULTS_DIR}/")
-    print(" - tabla_ablacion.csv          -> tabla del paper (Seccion 6)")
-    print(" - feature_importance.png      -> grafico para el paper")
-    print(" - matriz_confusion_hibrido.png-> grafico para el paper")
-    print(" - resumen_corpus.json         -> cifras reales del corpus")
+    test_benignas = int((test["label"] == 0).sum())
+    test_phishing = int((test["label"] == 1).sum())
+    guardar_json("matrices_ablacion.json", {
+        "experimento": "random_stratified_70_15_15",
+        "test_total": len(test),
+        "test_benignas": test_benignas,
+        "test_phishing": test_phishing,
+        "escenarios": matrices,
+    })
 
+    if modelo_hibrido is None or metricas_hibrido is None or matriz_hibrido is None:
+        raise RuntimeError("No se genero el escenario hibrido")
+
+    tn, fp, fn, tp = (int(value) for value in matriz_hibrido.ravel())
+    guardar_json("metricas_hibrido.json", {
+        "experimento": "random_stratified_70_15_15",
+        "clase_positiva": "phishing",
+        "test": {
+            "total": len(test),
+            "benignas": test_benignas,
+            "phishing": test_phishing,
+        },
+        "matriz_confusion": {"TN": tn, "FP": fp, "FN": fn, "TP": tp},
+        "metricas": {
+            "accuracy": float(metricas_hibrido["exactitud"]),
+            "precision": float(metricas_hibrido["precision"]),
+            "recall": float(metricas_hibrido["exhaustividad"]),
+            "f1": float(metricas_hibrido["f1"]),
+            "false_positive_rate": float(metricas_hibrido["tfp"]),
+        },
+    })
+
+    params = modelo_hibrido.get_params()
+    guardar_json("config_modelo.json", {
+        "experimento": "random_stratified_70_15_15",
+        "implementacion_oficial": "src/fase5_6_entrenamiento.py",
+        "dataset": "data/corpus_normalizado.parquet",
+        "split": {
+            "procedimiento": "dos train_test_split estratificados: 70/30 y 50/50 del remanente",
+            "random_state": RANDOM_STATE,
+            "train": len(train), "validation": len(val), "test": len(test),
+            "validation_usage": "reservado; no se usa para calcular las metricas reportadas",
+        },
+        "seleccion_modelo": {
+            "metodo": "GridSearchCV con grilla unitaria",
+            "cv": "StratifiedKFold(n_splits=3, shuffle=True, random_state=42)",
+            "scoring": "accuracy",
+            "semillas_ejecutadas": [RANDOM_STATE],
+        },
+        "modelo_hibrido": {
+            "n_estimators": int(params["n_estimators"]),
+            "objective": params["objective"],
+            "max_depth": int(params["max_depth"]),
+            "learning_rate": float(params["learning_rate"]),
+            "random_state": int(params["random_state"]),
+            "n_jobs": int(params["n_jobs"]),
+            "eval_metric": params["eval_metric"],
+        },
+        "caracteristicas": {
+            "url_lexicas": len(COLS_LEXICAS),
+            "hipervinculos": len(COLS_HIPERVINCULOS),
+            "tfidf_max_features": 5000,
+            "tfidf_analyzer": "char",
+            "tfidf_ngram_range": [1, 3],
+            "total_modelo": len(nombres_features),
+        },
+        "versiones": {
+            "xgboost": xgb.__version__,
+            "scikit_learn": sklearn.__version__,
+        },
+    })
+
+    manifiesto = {
+        nombre: sha256_archivo(os.path.join(RESULTS_DIR, nombre))
+        for nombre in MANIFEST_FILES
+    }
+    guardar_json("MANIFIESTO_SHA256.json", manifiesto)
+
+    print(f"\nResultados guardados en {RESULTS_DIR}/")
     return df_ablacion
 
 

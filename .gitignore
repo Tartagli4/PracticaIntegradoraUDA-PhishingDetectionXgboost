@@ -1,0 +1,16 @@
+# Datos descargados y artefactos locales pesados
+data/*.parquet
+data/*.csv
+data/*.zip
+results/**/*.joblib
+
+# Python y Jupyter
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Sistema
+.DS_Store
+Thumbs.db

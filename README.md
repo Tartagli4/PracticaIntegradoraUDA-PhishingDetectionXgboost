@@ -1,138 +1,127 @@
-# 🛡️ Detección de Phishing con XGBoost
+# Detección de phishing con XGBoost — Student Paper CACIC 2026
 
-Trabajo de investigación presentado en **CACIC 2026**.  
-Implementación de un sistema híbrido para detectar sitios web de phishing en tiempo real, sin depender de listas negras ni servicios externos.
+Implementación de un clasificador de páginas de phishing que combina nueve
+características léxicas de URL, TF-IDF de caracteres sobre el texto extraído
+del HTML y tres indicadores estructurales de hipervínculos.
 
----
+## Experimento oficial
 
-## ¿Qué hace este proyecto?
+El Student Paper reporta una única ejecución: partición aleatoria
+estratificada 70/15/15 con `random_state=42`.
 
-Analiza cada página web desde dos ángulos distintos y los combina para decidir si es phishing o no:
+| Partición | Casos |
+|---|---:|
+| Corpus final | 57.309 |
+| Phishing | 39.684 |
+| Benignas | 17.625 |
+| Train | 40.116 |
+| Validación | 8.596 |
+| Test | 8.597 |
 
-- **La URL** → longitud sospechosa, subdominios raros, presencia de IP, etc.
-- **El contenido HTML** → palabras clave de autenticación, formularios que envían datos afuera, enlaces rotos o vacíos
-- **Los hipervínculos** → qué porcentaje de los links apuntan a dominios externos
+El test contiene 2.644 páginas benignas y 5.953 de phishing. La matriz del
+sistema híbrido es:
 
-Todo esto se clasifica con **XGBoost**, un modelo de árbol de decisión potenciado que además explica qué características influyeron más en cada predicción.
+```text
+                Predicho
+              Benigno  Phishing
+Real Benigno     2631        13
+Real Phishing      66      5887
+```
 
-## Resultados obtenidos
-
-Sobre un corpus propio de **57.309 páginas web** (39.684 phishing + 17.625 benignas), recolectadas en múltiples sesiones desde feeds activos de PhishTank, OpenPhish y Tranco durante junio-julio de 2026:
+Las métricas se recalcularon desde matrices enteras. Las cuatro filas de
+ablación corresponden al mismo test de 8.597 casos.
 
 | Escenario | Exactitud | Precisión | Exhaustividad | F1 | TFP |
-|---|---|---|---|---|---|
-| Solo URL | 98,31% | 99,37% | 98,19% | 0,9877 | 1,40% |
-| Solo HTML (TF-IDF) | 93,21% | 94,76% | 95,46% | 0,9511 | 11,88% |
-| Solo Hipervínculos | 83,01% | 82,67% | 95,46% | 0,8861 | 45,05% |
-| **Sistema Híbrido** | **99,08%** | **99,78%** | **98,89%** | **0,9933** | **0,49%** |
+|---|---:|---:|---:|---:|---:|
+| Solo URL | 98,31 % | 99,37 % | 98,19 % | 0,9877 | 1,40 % |
+| Solo HTML (TF-IDF) | 93,21 % | 94,76 % | 95,46 % | 0,9511 | 11,88 % |
+| Solo Hipervínculos | 83,01 % | 82,67 % | 95,46 % | 0,8861 | 45,05 % |
+| **Sistema híbrido** | **99,08 %** | **99,78 %** | **98,89 %** | **0,9933** | **0,49 %** |
 
-Matriz de confusión del sistema híbrido sobre el conjunto de prueba (n=8.597): 2.631 verdaderos negativos, 13 falsos positivos, 66 falsos negativos, 5.887 verdaderos positivos.
+## Protocolo reproducible
 
----
+El código principal es `src/fase5_6_entrenamiento.py`. El corpus se divide en
+dos pasos estratificados (70/30 y luego 50/50 del remanente), ambos con
+semilla 42. Cada escenario usa una grilla unitaria con validación cruzada
+estratificada de tres pliegues sobre train:
 
-## Estructura del proyecto
-
+```text
+max_depth=6
+n_estimators=300
+learning_rate=0.1
+objective=binary:logistic
+eval_metric=logloss
+random_state=42
 ```
+
+Se ejecutó una sola semilla. La partición de validación queda reservada y no
+interviene en las métricas reportadas. Los artefactos conservados registran
+XGBoost 3.3.0 y scikit-learn 1.9.0; esas versiones están fijadas en
+`requirements.txt`.
+
+Para ejecutar el entrenamiento completo desde la raíz del repositorio:
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
+python -m pip install -r requirements.txt
+cd src
+python fase5_6_entrenamiento.py
+```
+
+El entrenamiento requiere `data/corpus_normalizado.parquet`, que no se
+distribuye en el repositorio. Para comprobar los resultados publicados sin
+instalar las dependencias de aprendizaje automático:
+
+```bash
+python scripts/verificar_resultados.py
+```
+
+El verificador usa sólo la biblioteca estándar, recalcula todas las métricas
+y falla si el corpus, la ablación, las matrices, la configuración o los hashes
+son inconsistentes.
+
+## Estructura relevante
+
+```text
 phishing-xgboost/
-├── notebooks/
-│   └── pipeline_completo.ipynb   # Notebook principal — correr esto
+├── notebooks/pipeline_completo.ipynb
+├── scripts/verificar_resultados.py
 ├── src/
-│   ├── fase1_recoleccion.py      # Descarga URLs de phishing y benignas
-│   ├── fase2_3_normalizacion.py  # Limpieza de HTML y URLs
-│   ├── fase4_features.py         # Extracción de características
-│   └── fase5_6_entrenamiento.py  # Entrenamiento XGBoost + ablación
-├── data/                         # Se llena al correr la Fase 1
-├── results/                      # Tabla de ablación, gráficos, modelos
+│   ├── fase1_recoleccion.py
+│   ├── fase2_3_normalizacion.py
+│   ├── fase4_features.py
+│   └── fase5_6_entrenamiento.py
+├── data/                              # datos locales, no versionados
+├── results/student_paper_oficial/     # artefactos livianos verificados
 └── requirements.txt
 ```
 
----
+Los datos provienen de PhishTank y OpenPhish para phishing y principalmente
+de Tranco para páginas benignas.
 
-## Cómo correrlo
+## Alcance y limitaciones
 
-### Opción A — Google Colab (sin instalar nada)
-
-1. Subir el ZIP a Colab y descomprimirlo:
-```python
-from google.colab import files
-uploaded = files.upload()  # subir phishing-xgboost.zip
-!unzip phishing-xgboost.zip
-```
-
-2. Abrir `notebooks/pipeline_completo.ipynb` y ejecutar las celdas en orden.
-
-### Opción B — Local (recomendado para corpus grandes)
-
-```bash
-pip install -r requirements.txt
-jupyter notebook notebooks/pipeline_completo.ipynb
-```
-
-> **Nota:** Para construir un corpus grande (>10.000 páginas) se recomienda correr el pipeline localmente. Colab gratuito tiene limitaciones de RAM y tiempo de sesión que dificultan el rastreo de volúmenes grandes.
-
----
-
-## Fuentes de datos
-
-Los datos **no están incluidos** en el repositorio — se descargan automáticamente al correr el notebook:
-
-| Fuente | Tipo | Cómo se obtiene |
-|---|---|---|
-| [PhishTank](https://phishtank.org/) | Phishing | Automático (feed CSV público) |
-| [OpenPhish](https://openphish.com/) | Phishing | Automático (feed .txt público) |
-| [Tranco](https://tranco-list.eu/) | Benigno | Descarga manual del CSV, guardar en `data/tranco_top1m.csv` |
-
-> **Nota sobre el corpus:** PhishTank aplica rate limiting con descargas frecuentes desde la misma IP. Para construir un corpus grande hay que correr la Fase 1 en múltiples sesiones a lo largo de varios días, acumulando URLs frescas en cada corrida. El corpus de este trabajo se construyó así a lo largo de aproximadamente 2 semanas.
-
----
-
-## Fases del pipeline
-
-```
-Fase 1 → Descargar URLs de phishing (PhishTank, OpenPhish) y benignas (Tranco)
-          + rastrear el HTML de cada una en menos de 24hs
-
-Fase 2 → Limpiar el HTML: sacar <script>, <style>, comentarios
-          Normalizar URLs: minúsculas, decodificar caracteres especiales
-
-Fase 3 → Tokenizar URLs por delimitadores (. / - _ ? =)
-          Tokenizar HTML a nivel de carácter para TF-IDF
-
-Fase 4 → Extraer 3 grupos de características:
-          (a) 9 features léxicas de la URL
-          (b) Vectores TF-IDF del HTML (n-gramas de 1-3 caracteres)
-          (c) 3 razones de hipervínculos (externos, nulos, formularios)
-
-Fase 5 → Escalar features escalares (media 0, varianza 1)
-          Normalizar TF-IDF con norma L2
-          (todo ajustado SOLO sobre el conjunto de entrenamiento)
-
-Fase 6 → Partir el corpus 70% train / 15% val / 15% test (estratificado)
-          Entrenar XGBoost con validación cruzada de 5 pliegues
-          Evaluar en test + estudio de ablación por grupo de features
-```
-
----
-
-## Resultados guardados en `results/`
-
-Después de correr el notebook completo vas a encontrar:
-
-- `tabla_ablacion.csv` — métricas de los 4 escenarios (para el paper)
-- `feature_importance.png` — qué variables influyeron más en el modelo
-- `matriz_confusion_hibrido.png` — matriz de confusión del sistema híbrido
-- `modelo_xgboost_hibrido.joblib` — modelo entrenado (para reusar)
-- `resumen_corpus.json` — tamaño real del corpus usado
-
----
+El split aleatorio no agrupa por dominio o campaña ni deduplica por similitud
+semántica o de HTML. La clase benigna, basada principalmente en Tranco, puede
+ser menos desafiante que portales de autenticación, pasarelas de pago o
+infraestructura compartida. Se informa una sola partición y una sola semilla.
+Por estas razones, los resultados no demuestran generalización cronológica,
+desempeño ante campañas posteriores ni estabilidad frente a cambios de
+distribución.
 
 ## Autores
 
-Víctor Córdoba · Lionel Gutiérrez · Nahuel Leyes · Giuliana Pessina · Ignacio Romero · Juan Ignacio Tartaglia · Jorge Tohme  
-Laboratorio de Investigación en Ciencia y Tecnología — Universidad del Aconcagua, Mendoza, Argentina
+Víctor Córdoba · Lionel Gutiérrez · Nahuel Leyes · Giuliana Pessina ·
+Ignacio Romero · Juan Ignacio Tartaglia · Jorge Tohme
 
----
+Laboratorio de Investigación en Ciencia y Tecnología — Universidad del
+Aconcagua, Mendoza, Argentina.
 
-## Referencia principal
+## Nota sobre asistencia generativa
 
-Aljofey, A. et al. (2022). *An Effective Detection Approach for Phishing Websites Using URL and HTML Features*. Scientific Reports, 12(1), 8842. https://doi.org/10.1038/s41598-022-10841-5
+Se utilizaron herramientas de IA generativa como asistencia para la generación
+y revisión de código y para la revisión editorial. La ejecución del pipeline,
+la validación de los resultados y la verificación experimental fueron
+realizadas por los autores.

@@ -1,0 +1,72 @@
+{
+  "experimento": "random_stratified_70_15_15",
+  "test_total": 8597,
+  "test_benignas": 2644,
+  "test_phishing": 5953,
+  "escenarios": [
+    {
+      "escenario": "Solo URL",
+      "matriz_confusion": {
+        "TN": 2607,
+        "FP": 37,
+        "FN": 108,
+        "TP": 5845
+      },
+      "metricas": {
+        "exactitud": 0.9831336512737001,
+        "precision": 0.9937096225773546,
+        "exhaustividad": 0.9818578867797749,
+        "f1": 0.9877482044782424,
+        "tfp": 0.01399394856278366
+      }
+    },
+    {
+      "escenario": "Solo HTML (TF-IDF)",
+      "matriz_confusion": {
+        "TN": 2330,
+        "FP": 314,
+        "FN": 270,
+        "TP": 5683
+      },
+      "metricas": {
+        "exactitud": 0.9320693265092475,
+        "precision": 0.9476404869101217,
+        "exhaustividad": 0.9546447169494373,
+        "f1": 0.9511297071129706,
+        "tfp": 0.11875945537065052
+      }
+    },
+    {
+      "escenario": "Solo Hipervinculos",
+      "matriz_confusion": {
+        "TN": 1453,
+        "FP": 1191,
+        "FN": 270,
+        "TP": 5683
+      },
+      "metricas": {
+        "exactitud": 0.8300569966267303,
+        "precision": 0.8267384346814082,
+        "exhaustividad": 0.9546447169494373,
+        "f1": 0.8860996335854057,
+        "tfp": 0.45045385779122543
+      }
+    },
+    {
+      "escenario": "Sistema Hibrido",
+      "matriz_confusion": {
+        "TN": 2631,
+        "FP": 13,
+        "FN": 66,
+        "TP": 5887
+      },
+      "metricas": {
+        "exactitud": 0.9908107479353263,
+        "precision": 0.9977966101694915,
+        "exhaustividad": 0.9889131530320847,
+        "f1": 0.9933350206698726,
+        "tfp": 0.004916792738275341
+      }
+    }
+  ]
+}

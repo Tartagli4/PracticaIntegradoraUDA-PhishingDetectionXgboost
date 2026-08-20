@@ -1,0 +1,8 @@
+{
+  "total_paginas": 57309,
+  "benignas": 17625,
+  "phishing": 39684,
+  "train": 40116,
+  "val": 8596,
+  "test": 8597
+}
