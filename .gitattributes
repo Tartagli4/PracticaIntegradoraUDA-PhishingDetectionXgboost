@@ -1,0 +1,12 @@
+# Los hashes de results/student_paper_oficial/MANIFIESTO_SHA256.json se
+# calculan sobre los archivos con finales de linea LF. Sin esta normalizacion,
+# un clon en Windows (core.autocrlf=true) recibe CRLF y
+# scripts/verificar_resultados.py falla con "Hash incompatible".
+* text=auto eol=lf
+
+# Binarios: git no debe convertirlos ni tratarlos como texto.
+*.png binary
+*.pdf binary
+*.zip binary
+*.joblib binary
+*.parquet binary
