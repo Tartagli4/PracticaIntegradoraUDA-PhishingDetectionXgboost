@@ -38,6 +38,12 @@ ablación corresponden al mismo test de 8.597 casos.
 | Solo Hipervínculos | 83,01 % | 82,67 % | 95,46 % | 0,8861 | 45,05 % |
 | **Sistema híbrido** | **99,08 %** | **99,78 %** | **98,89 %** | **0,9933** | **0,49 %** |
 
+Solo HTML y Solo Hipervínculos coinciden en exhaustividad (95,46 %): ambos
+dejan 270 falsos negativos sobre las 5.953 páginas de phishing del test. No
+se verificó si además fallan sobre el mismo subconjunto de páginas, ya que
+los artefactos publicados conservan las matrices de confusión y no las
+predicciones por muestra.
+
 ## Protocolo reproducible
 
 El código principal es `src/fase5_6_entrenamiento.py`. El corpus se divide en
