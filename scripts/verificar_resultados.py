@@ -42,6 +42,13 @@ MANIFEST_FILES = {
     "metricas_hibrido.json",
     "config_modelo.json",
     "matrices_ablacion.json",
+    "predicciones_test.csv",
+}
+PREDICTION_COLUMNS = {
+    "Solo URL": "solo_url",
+    "Solo HTML (TF-IDF)": "solo_html",
+    "Solo Hipervinculos": "solo_hipervinculos",
+    "Sistema Hibrido": "sistema_hibrido",
 }
 ABS_TOL = 1e-15
 
@@ -161,6 +168,46 @@ def verify_ablation() -> tuple[dict[str, dict[str, int]], dict[str, float]]:
     return matrices, metrics_from_matrix(matrices["Sistema Hibrido"])
 
 
+def verify_predictions(matrices: dict[str, dict[str, int]]) -> None:
+    """Recalcula cada matriz desde las predicciones por muestra.
+
+    Es la comprobacion mas fuerte del verificador: no se limita a chequear que
+    las metricas sean coherentes con una matriz declarada, sino que reconstruye
+    esa matriz contando aciertos y errores caso por caso.
+    """
+    with (RESULTS / "predicciones_test.csv").open(
+        "r", encoding="utf-8", newline=""
+    ) as handle:
+        rows = list(csv.DictReader(handle))
+
+    require(len(rows) == EXPECTED_TEST["total"], f"Las predicciones no cubren el test: {len(rows)}")
+    require(
+        len({row["indice_corpus"] for row in rows}) == len(rows),
+        "Hay indices de corpus repetidos en las predicciones",
+    )
+
+    truth = [int(row["y_real"]) for row in rows]
+    require(
+        truth.count(0) == EXPECTED_TEST["benignas"]
+        and truth.count(1) == EXPECTED_TEST["phishing"],
+        "La distribucion de clases en las predicciones no coincide con el test",
+    )
+
+    for scenario, column in PREDICTION_COLUMNS.items():
+        counts = {"TN": 0, "FP": 0, "FN": 0, "TP": 0}
+        for row in rows:
+            real, predicted = int(row["y_real"]), int(row[column])
+            require(predicted in (0, 1), f"{scenario}: prediccion fuera de rango")
+            if real == 1:
+                counts["TP" if predicted == 1 else "FN"] += 1
+            else:
+                counts["FP" if predicted == 1 else "TN"] += 1
+        require(
+            counts == matrices[scenario],
+            f"{scenario}: la matriz reconstruida {counts} no coincide con {matrices[scenario]}",
+        )
+
+
 def verify_hybrid(hybrid_metrics: dict[str, float]) -> None:
     document = load_json("metricas_hibrido.json")
     require(
@@ -258,7 +305,8 @@ def main() -> int:
         for name in required:
             require((RESULTS / name).is_file(), f"Falta {name}")
         verify_counts()
-        _, hybrid_metrics = verify_ablation()
+        matrices, hybrid_metrics = verify_ablation()
+        verify_predictions(matrices)
         verify_hybrid(hybrid_metrics)
         verify_config()
         verify_manifest()
@@ -272,6 +320,7 @@ def main() -> int:
     print("OK: accuracy=0.9908107479353263 precision=0.9977966101694915")
     print("OK: recall=0.9889131530320847 f1=0.9933350206698726")
     print("OK: TFP=0.004916792738275341 y hashes verificados")
+    print("OK: las cuatro matrices se reconstruyen desde predicciones_test.csv")
     return 0
 
 

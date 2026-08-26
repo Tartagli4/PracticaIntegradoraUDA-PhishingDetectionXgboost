@@ -39,10 +39,13 @@ ablación corresponden al mismo test de 8.597 casos.
 | **Sistema híbrido** | **99,08 %** | **99,78 %** | **98,89 %** | **0,9933** | **0,49 %** |
 
 Solo HTML y Solo Hipervínculos coinciden en exhaustividad (95,46 %): ambos
-dejan 270 falsos negativos sobre las 5.953 páginas de phishing del test. No
-se verificó si además fallan sobre el mismo subconjunto de páginas, ya que
-los artefactos publicados conservan las matrices de confusión y no las
-predicciones por muestra.
+dejan 270 falsos negativos sobre las 5.953 páginas de phishing del test. La
+coincidencia en el total es fortuita, pero ambos conjuntos comparten 108
+páginas frente a las 12 esperables si los errores fueran independientes.
+
+`results/student_paper_oficial/predicciones_test.csv` publica las predicciones
+por muestra de los cuatro escenarios; `scripts/verificar_resultados.py`
+reconstruye desde ahí las cuatro matrices de confusión, caso por caso.
 
 ## Protocolo reproducible
 

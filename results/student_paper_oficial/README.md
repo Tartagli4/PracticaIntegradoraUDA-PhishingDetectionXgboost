@@ -10,6 +10,7 @@ archivos corresponden al split aleatorio estratificado 70/15/15 con semilla
 - `matriz_confusion.png`: matriz del sistema híbrido.
 - `metricas_hibrido.json`: resultado detallado del sistema híbrido.
 - `config_modelo.json`: protocolo, hiperparámetros y versiones.
+- `predicciones_test.csv`: predicciones por muestra de los cuatro escenarios.
 - `MANIFIESTO_SHA256.json`: hashes de integridad.
 
 Verificación desde la raíz del repositorio:

@@ -11,6 +11,7 @@ Este script:
 5. Corre el estudio de ablacion: Solo-URL / Solo-HTML / Solo-Hipervinculos / Hibrido.
 6. Guarda los artefactos del experimento oficial en ../results/student_paper_oficial/
 """
+import csv
 import hashlib
 import json
 import os
@@ -41,7 +42,14 @@ OFFICIAL_MODEL_GRID = {
 MANIFEST_FILES = (
     "resumen_corpus.json", "tabla_ablacion.csv", "matriz_confusion.png",
     "metricas_hibrido.json", "config_modelo.json", "matrices_ablacion.json",
+    "predicciones_test.csv",
 )
+COLUMNAS_PREDICCION = {
+    "Solo URL": "solo_url",
+    "Solo HTML (TF-IDF)": "solo_html",
+    "Solo Hipervinculos": "solo_hipervinculos",
+    "Sistema Hibrido": "sistema_hibrido",
+}
 
 COLS_LEXICAS = [
     "url_longitud", "url_num_subdominios", "url_tiene_ip", "url_tiene_arroba",
@@ -92,6 +100,7 @@ def entrenar_xgboost(X_train, y_train, cv_folds=OFFICIAL_CV_FOLDS):
 
 
 def evaluar(modelo, X_test, y_test, nombre_escenario):
+    """Devuelve metricas, matriz y las predicciones por muestra del escenario."""
     y_pred = modelo.predict(X_test)
     metrics = {
         "escenario": nombre_escenario,
@@ -101,7 +110,27 @@ def evaluar(modelo, X_test, y_test, nombre_escenario):
         "f1": f1_score(y_test, y_pred),
         "tfp": calcular_tfp(y_test, y_pred),
     }
-    return metrics, confusion_matrix(y_test, y_pred)
+    return metrics, confusion_matrix(y_test, y_pred), y_pred
+
+
+def guardar_predicciones(test, predicciones):
+    """Escribe las predicciones por muestra, en orden del corpus.
+
+    Permite que scripts/verificar_resultados.py reconstruya cada matriz de
+    confusion caso por caso, sin depender de numpy.
+    """
+    indices = test["indice_corpus"].to_list()
+    orden = sorted(range(len(indices)), key=lambda k: indices[k])
+    ruta = os.path.join(RESULTS_DIR, "predicciones_test.csv")
+    with open(ruta, "w", encoding="utf-8", newline="") as archivo:
+        escritor = csv.writer(archivo, lineterminator="\n")
+        escritor.writerow(["indice_corpus", "y_real"] + list(COLUMNAS_PREDICCION.values()))
+        etiquetas = test["label"].to_list()
+        for k in orden:
+            escritor.writerow(
+                [int(indices[k]), int(etiquetas[k])]
+                + [int(predicciones[nombre][k]) for nombre in COLUMNAS_PREDICCION]
+            )
 
 
 def graficar_matriz_confusion(cm, nombre_archivo):
@@ -152,6 +181,7 @@ def sha256_archivo(ruta):
 def correr_pipeline_completo():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     df = pd.read_parquet("../data/corpus_normalizado.parquet")
+    df["indice_corpus"] = range(len(df))
     train, val, test = particionar(df)
 
     train_scalar = construir_features_lexicas_y_links(train)
@@ -194,6 +224,7 @@ def correr_pipeline_completo():
 
     resultados_ablacion = []
     matrices = []
+    predicciones = {}
     modelo_hibrido = None
     metricas_hibrido = None
     matriz_hibrido = None
@@ -201,7 +232,8 @@ def correr_pipeline_completo():
     for nombre, (X_train, X_test) in escenarios.items():
         print(f"\n=== Entrenando escenario: {nombre} ===")
         modelo = entrenar_xgboost(X_train, train["label"])
-        metrics, cm = evaluar(modelo, X_test, test["label"], nombre)
+        metrics, cm, y_pred = evaluar(modelo, X_test, test["label"], nombre)
+        predicciones[nombre] = y_pred
         resultados_ablacion.append(metrics)
         tn, fp, fn, tp = (int(value) for value in cm.ravel())
         matrices.append({
@@ -221,6 +253,8 @@ def correr_pipeline_completo():
             joblib.dump(
                 modelo, os.path.join(RESULTS_DIR, "modelo_xgboost_hibrido.joblib")
             )
+
+    guardar_predicciones(test, predicciones)
 
     df_ablacion = pd.DataFrame(resultados_ablacion)
     df_ablacion.to_csv(os.path.join(RESULTS_DIR, "tabla_ablacion.csv"), index=False)
