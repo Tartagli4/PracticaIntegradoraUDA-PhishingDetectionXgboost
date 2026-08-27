@@ -89,13 +89,23 @@ python scripts/verificar_resultados.py
 
 El verificador usa sólo la biblioteca estándar, recalcula todas las métricas
 y falla si el corpus, la ablación, las matrices, la configuración o los hashes
-son inconsistentes.
+son inconsistentes. Entre otras cosas reconstruye las cuatro matrices de
+confusión contando las 8.597 predicciones individuales de
+`predicciones_test.csv`, de modo que alterar una sola predicción lo hace fallar.
+
+Para recorrer esa verificación paso a paso está
+`notebooks/verificacion_resultados.ipynb`, que parte únicamente de los archivos
+publicados y muestra de dónde sale cada número del paper. Tampoco necesita
+instalar nada y corre en segundos. No reentrena: eso lo hace
+`src/fase5_6_entrenamiento.py`, que es lo que produjo estos artefactos.
 
 ## Estructura relevante
 
 ```text
 phishing-xgboost/
-├── notebooks/pipeline_completo.ipynb
+├── notebooks/
+│   ├── pipeline_completo.ipynb        # recoleccion + entrenamiento
+│   └── verificacion_resultados.ipynb  # verifica los artefactos publicados
 ├── scripts/verificar_resultados.py
 ├── src/
 │   ├── fase1_recoleccion.py
