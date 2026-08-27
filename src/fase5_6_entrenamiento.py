@@ -165,7 +165,11 @@ def graficar_feature_importance(modelo, nombres_features, nombre_archivo, top_n=
 
 
 def guardar_json(nombre_archivo, contenido):
-    with open(os.path.join(RESULTS_DIR, nombre_archivo), "w", encoding="utf-8") as archivo:
+    # newline="" fuerza LF en todas las plataformas: el manifiesto hashea estos
+    # archivos y git los versiona en LF, asi que escribir CRLF en Windows haria
+    # fallar la verificacion en cualquier clon.
+    ruta = os.path.join(RESULTS_DIR, nombre_archivo)
+    with open(ruta, "w", encoding="utf-8", newline="") as archivo:
         json.dump(contenido, archivo, ensure_ascii=False, indent=2)
         archivo.write("\n")
 
@@ -180,7 +184,13 @@ def sha256_archivo(ruta):
 
 def correr_pipeline_completo():
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    df = pd.read_parquet("../data/corpus_normalizado.parquet")
+    # Solo se leen las columnas que el pipeline usa. El parquet completo son
+    # 4 GB sin comprimir, de los cuales 3 GB son la columna `html` cruda, que
+    # ya no hace falta despues de la normalizacion.
+    df = pd.read_parquet(
+        "../data/corpus_normalizado.parquet",
+        columns=["url", "label", "html_limpio", "texto_plano"],
+    )
     df["indice_corpus"] = range(len(df))
     train, val, test = particionar(df)
 
@@ -257,7 +267,8 @@ def correr_pipeline_completo():
     guardar_predicciones(test, predicciones)
 
     df_ablacion = pd.DataFrame(resultados_ablacion)
-    df_ablacion.to_csv(os.path.join(RESULTS_DIR, "tabla_ablacion.csv"), index=False)
+    df_ablacion.to_csv(os.path.join(RESULTS_DIR, "tabla_ablacion.csv"),
+                       index=False, lineterminator="\n")
     print("\n=== TABLA DE ABLACION ===")
     print(df_ablacion.to_string(index=False))
 

@@ -18,6 +18,5 @@
     "recall": 0.9889131530320847,
     "f1": 0.9933350206698726,
     "false_positive_rate": 0.004916792738275341
-  },
-  "fuente": "tabla_ablacion.csv, fila Sistema Hibrido"
+  }
 }

@@ -1,9 +1,9 @@
 {
-  "config_modelo.json": "87d2c96b23c4ec87444262fd78aec89bd5abdb2b8de2db497f6b28acfc253a86",
-  "matrices_ablacion.json": "0d7eb9da2cb68429c1942c4deb6fd68e3d3c7a75edd5ed19513123932e100883",
-  "matriz_confusion.png": "5c8967e866f073ef81c8744ee32a3e0037c05ea1b80be4dd991918686a46819c",
-  "metricas_hibrido.json": "0d82be1156d8317c04200c24bf676afc7cc76e76bf2ef05ffd6d78957838eeba",
-  "predicciones_test.csv": "b871bfad9e9b4775f87a17ce74a41eddbeaef928c2db7d43b2cde41d70754d49",
   "resumen_corpus.json": "18717e5ddee4baac69a6ea5c915a0f7d769c1ebc8cf8fb76e4c83eafb47212ad",
-  "tabla_ablacion.csv": "0033d690d62c81247531f98e891dc733a4037e89af147fcd951753d9d95611d0"
+  "tabla_ablacion.csv": "0033d690d62c81247531f98e891dc733a4037e89af147fcd951753d9d95611d0",
+  "matriz_confusion.png": "5c8967e866f073ef81c8744ee32a3e0037c05ea1b80be4dd991918686a46819c",
+  "metricas_hibrido.json": "2bddfb295ae6985fc1bd1d27098986e2a96c6848f91b8a20aa4824c63cc35043",
+  "config_modelo.json": "87d2c96b23c4ec87444262fd78aec89bd5abdb2b8de2db497f6b28acfc253a86",
+  "matrices_ablacion.json": "a2170accfc290b7e2e1de6df647bc81b9dc6916feefbbc52037d7d81f7c9a544",
+  "predicciones_test.csv": "b871bfad9e9b4775f87a17ce74a41eddbeaef928c2db7d43b2cde41d70754d49"
 }

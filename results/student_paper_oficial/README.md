@@ -13,6 +13,12 @@ archivos corresponden al split aleatorio estratificado 70/15/15 con semilla
 - `predicciones_test.csv`: predicciones por muestra de los cuatro escenarios.
 - `MANIFIESTO_SHA256.json`: hashes de integridad.
 
+Todos los archivos de esta carpeta son la salida directa de
+`correr_pipeline_completo()` (`src/fase5_6_entrenamiento.py`), no derivaciones
+posteriores. `predicciones_test.csv` conserva la predicción de cada uno de los
+8.597 casos de test, de modo que las cuatro matrices de confusión pueden
+reconstruirse caso por caso.
+
 Verificación desde la raíz del repositorio:
 
 ```bash
